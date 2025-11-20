@@ -7,7 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.beelow.journalbetter.ui.calendar.CalendarScreen
-import com.beelow.journalbetter.ui.details.DayDetailsScreen
+import com.beelow.journalbetter.ui.entries.EntriesScreen
 
 @Composable
 fun JournalNavGraph(navController: NavHostController) {
@@ -27,7 +27,7 @@ fun JournalNavGraph(navController: NavHostController) {
         ) { backStackEntry ->
             val date = backStackEntry.arguments?.getString("date")
             val quickNote = backStackEntry.arguments?.getString("quickNote")
-            DayDetailsScreen(date = date, quickNote = quickNote, navController = navController)
+            EntriesScreen(date = date, quickNote = quickNote, navController = navController)
         }
     }
 }

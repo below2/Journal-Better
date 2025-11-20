@@ -7,13 +7,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.compose.rememberNavController
 import com.beelow.journalbetter.navigation.JournalNavGraph
-import com.beelow.journalbetter.ui.theme.JournalBetterTheme
+import com.beelow.journalbetter.ui.theme.AppTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            JournalBetterTheme {
+            AppTheme {
                 val navController = rememberNavController()
                 JournalNavGraph(navController = navController)
             }
@@ -24,7 +24,7 @@ class MainActivity : ComponentActivity() {
 @Preview(showBackground = true)
 @Composable
 fun DefaultPreview() {
-    JournalBetterTheme {
+    AppTheme {
         val navController = rememberNavController()
         JournalNavGraph(navController = navController)
     }
