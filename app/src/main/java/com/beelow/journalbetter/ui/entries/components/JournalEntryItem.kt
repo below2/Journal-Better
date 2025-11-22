@@ -5,48 +5,41 @@ import androidx.annotation.RequiresApi
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.SwipeToDismissBoxValue
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.Text
+import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.beelow.journalbetter.data.JournalEntry
-import java.time.format.DateTimeFormatter
+import androidx.navigation.NavController
 import com.beelow.journalbetter.R
+import com.beelow.journalbetter.data.JournalEntry
+import kotlinx.coroutines.delay
+import java.util.Date
 
 @RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun JournalEntryItem(
+    navController: NavController,
     entry: JournalEntry,
     onEntryTextChange: (String) -> Unit,
     onDeleteEntry: () -> Unit,
@@ -57,45 +50,76 @@ fun JournalEntryItem(
     isSelected: Boolean,
     onSelectEntry: () -> Unit
 ) {
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = {
-            // Allow swipe-to-delete, but prevent swipe-to-hide from dismissing
-            it != SwipeToDismissBoxValue.StartToEnd
+    // Local state for debounce logic
+    var localText by remember(entry.id) { mutableStateOf(entry.text) }
+    var localUpdatedTimestamp by remember(entry.id) {
+        mutableStateOf(entry.updatedTimestamp ?: entry.createdTimestamp ?: Date())
+    }
+    val focusRequester = remember { FocusRequester() }
+
+    // Debounce sync
+    LaunchedEffect(localText) {
+        if (localText != entry.text) {
+            delay(1000)
+            onEntryTextChange(localText)
         }
+    }
+
+    // Sync timestamp from server
+    LaunchedEffect(entry.updatedTimestamp) {
+        if (entry.updatedTimestamp != null) {
+            localUpdatedTimestamp = entry.updatedTimestamp
+        }
+    }
+
+    // Save on dispose
+    val currentOnEntryTextChange by rememberUpdatedState(onEntryTextChange)
+    val currentLocalText by rememberUpdatedState(localText)
+    val currentEntryText by rememberUpdatedState(entry.text)
+
+    // Sync on dispose
+    DisposableEffect(Unit) {
+        onDispose {
+            if (currentLocalText != currentEntryText) {
+                currentOnEntryTextChange(currentLocalText)
+            }
+        }
+    }
+
+    // Swipe logic
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { it != SwipeToDismissBoxValue.StartToEnd }
     )
 
-    // Handle the hide/unhide action
     LaunchedEffect(dismissState.targetValue) {
         if (dismissState.targetValue == SwipeToDismissBoxValue.StartToEnd) {
             onToggleHideStatus()
-            // Reset the swipe state to snap back
             dismissState.snapTo(SwipeToDismissBoxValue.Settled)
         }
     }
 
-    // Handle the delete action after dismissal
     LaunchedEffect(dismissState.currentValue) {
         if (dismissState.currentValue == SwipeToDismissBoxValue.EndToStart) {
             onDeleteEntry()
         }
     }
 
-    // Swipe box
     SwipeToDismissBox(
         state = dismissState,
-        enableDismissFromStartToEnd = true,  // Hide
-        enableDismissFromEndToStart = true,  // Delete
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true,
         backgroundContent = {
             val color by animateColorAsState(
                 when (dismissState.targetValue) {
-                    SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.secondaryContainer // Hide
-                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer   // Delete
+                    SwipeToDismissBoxValue.StartToEnd -> MaterialTheme.colorScheme.secondaryContainer   // Hide
+                    SwipeToDismissBoxValue.EndToStart -> MaterialTheme.colorScheme.errorContainer       // Delete
                     else -> Color.Transparent
                 }
             )
             val scale by animateFloatAsState(
                 if (dismissState.targetValue == SwipeToDismissBoxValue.Settled) 0.75f else 1f
             )
+            // Swipe UI
             Box(
                 Modifier
                     .fillMaxSize()
@@ -105,8 +129,8 @@ fun JournalEntryItem(
             ) {
                 if (dismissState.dismissDirection == SwipeToDismissBoxValue.StartToEnd) {
                     Icon(
-                        if (entry.isHidden) painterResource(R.drawable.visibility_off_24px) else painterResource(R.drawable.visibility_24px),
-                        contentDescription = if (entry.isHidden) "Unhide" else "Hide",
+                        if (entry.hidden) painterResource(R.drawable.visibility_off_24px) else painterResource(R.drawable.visibility_24px),
+                        contentDescription = "Hide/Unhide",
                         modifier = Modifier.scale(scale)
                     )
                 } else {
@@ -119,60 +143,24 @@ fun JournalEntryItem(
             }
         }
     ) {
-        // Entry item
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(if (inSelectMode && isSelected) MaterialTheme.colorScheme.surfaceBright else MaterialTheme.colorScheme.surface)
-                .clickable(
-                    onClick = {
-                        onSelectEntry()
-                    }
-                )
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 10.dp, horizontal = 10.dp),
-                horizontalAlignment = Alignment.End
-            ) {
-                // Timestamp
-                Text(
-                    text = entry.timestamp.format(DateTimeFormatter.ofPattern("MM/dd/yyyy h:mm a")),
-                    modifier = Modifier.padding(end = 8.dp),
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                // Entry text field
-                if (!entry.isHidden) {
-                    val itemFocusRequester = remember { FocusRequester() }
-                    OutlinedTextField(
-                        value = entry.text,
-                        onValueChange = onEntryTextChange,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .focusable()
-                            .focusRequester(itemFocusRequester),
-                        label = { Text("Entry") },
-                        shape = RoundedCornerShape(8.dp),
-                        readOnly = inSelectMode,
-                        enabled = !inSelectMode
-                    )
-                    LaunchedEffect(entry.id) {
-                        if (entry.id == focusRequestedEntryId) {
-                            itemFocusRequester.requestFocus()
-                            onFocusRequestHandled() // Notify parent that focus has been handled
-                        }
-                    }
-                }
-            }
-
-            // Divider
-//            HorizontalDivider(
-//                modifier = Modifier.padding(horizontal = 10.dp)
-//            )
-        }
+        // Entry UI
+        EntryCardContent(
+            text = localText,
+            timestamp = localUpdatedTimestamp,
+            isHidden = entry.hidden,
+            inSelectMode = inSelectMode,
+            isSelected = isSelected,
+            focusRequester = focusRequester,
+            shouldRequestFocus = (entry.id == focusRequestedEntryId),
+            onTextChange = {
+                localText = it
+                localUpdatedTimestamp = Date()
+            },
+            onClick = onSelectEntry,
+            onLongClick = {
+                if (!inSelectMode) navController.navigate("entryDetails/${entry.id}")
+            },
+            onFocusHandled = onFocusRequestHandled
+        )
     }
 }

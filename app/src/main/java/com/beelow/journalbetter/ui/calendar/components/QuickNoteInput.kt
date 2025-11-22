@@ -10,8 +10,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -19,18 +21,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavController
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
-import java.time.LocalDateTime
 
 @Composable
-fun QuickNote(navController: NavController) {
+fun QuickNoteInput(
+    onQuickNoteEntered: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     var quickNote by remember { mutableStateOf("") }
 
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(top = 16.dp)
             .imePadding(),
@@ -46,19 +48,15 @@ fun QuickNote(navController: NavController) {
         )
         FloatingActionButton(
             onClick = {
-                val year = LocalDateTime.now().year.toString()
-                val month = LocalDateTime.now().monthValue.toString()
-                val day = LocalDateTime.now().dayOfMonth.toString()
-                val date = "$year-${month.padStart(2, '0')}-${day.padStart(2, '0')}"
-                val encodedQuickNote =
-                    URLEncoder.encode(quickNote, StandardCharsets.UTF_8.toString())
-                navController.navigate("details/${date}?quickNote=$encodedQuickNote")
-                quickNote = ""
+                if (quickNote.isNotBlank()) {
+                    onQuickNoteEntered(quickNote)
+                    quickNote = ""
+                }
             },
             modifier = Modifier.padding(start = 16.dp),
             shape = RoundedCornerShape(50)
         ) {
-            Icon(Icons.Filled.Add, "Add journal entry")
+            Icon(Icons.Filled.Add, "Add entry")
         }
     }
 }

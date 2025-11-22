@@ -3,7 +3,10 @@ package com.beelow.journalbetter.util
 import android.os.Build
 import androidx.annotation.RequiresApi
 import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Date
 import java.util.Locale
 
 fun getDayNumberSuffix(day: Int): String {
@@ -27,4 +30,16 @@ fun getDayHeader(date: String?): String {
     } else {
         return "Details"
     }
+}
+
+// Convert LocalDateTime -> Date
+fun LocalDateTime.toDate(): Date {
+    return Date.from(this.atZone(ZoneId.systemDefault()).toInstant())
+}
+
+// Convert Date -> LocalDateTime
+fun Date.toLocalDateTime(): LocalDateTime {
+    return this.toInstant()
+        .atZone(ZoneId.systemDefault())
+        .toLocalDateTime()
 }

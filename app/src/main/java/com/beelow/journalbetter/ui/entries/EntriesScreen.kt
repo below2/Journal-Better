@@ -3,99 +3,72 @@ package com.beelow.journalbetter.ui.entries
 import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.beelow.journalbetter.data.BulkOperation
+import com.beelow.journalbetter.ui.entries.components.EntriesTopBar
 import com.beelow.journalbetter.ui.entries.components.JournalEntryItem
 import com.beelow.journalbetter.util.getDayHeader
 
+// TODO: add more bulk operations like highlight, probably refactor to separate file
+enum class BulkOperation {
+    DELETE, HIDE, NOTHING
+}
+
 @RequiresApi(Build.VERSION_CODES.O)
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EntriesScreen(
-    date: String?,
+    date: String,
     quickNote: String?,
     navController: NavController,
     viewModel: EntriesViewModel = viewModel()
 ) {
     val uiState = viewModel.uiState
-    val formattedDate = getDayHeader(date)
+    val listState = rememberLazyListState()
 
-    LaunchedEffect(quickNote) {
-        viewModel.onQuickNote(quickNote)
+    // Load Data & Scroll Logic
+    LaunchedEffect(date) { viewModel.observeEntriesForDate(date) }
+    LaunchedEffect(quickNote) { viewModel.onQuickNote(quickNote) }
+
+    LaunchedEffect(uiState.entries, uiState.entryToFocusId) {
+        uiState.entryToFocusId?.let { focusId ->
+            val index = uiState.entries.indexOfFirst { it.id == focusId }
+            if (index >= 0) listState.animateScrollToItem(index)
+        }
     }
 
-    BackHandler(
-        enabled = uiState.inSelectMode,
-    ) {
+    // Back button exits select mode
+    BackHandler(enabled = uiState.inSelectMode) {
         viewModel.onBackInSelectMode()
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(text = formattedDate) },
-                navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    titleContentColor = MaterialTheme.colorScheme.primary,
-                ),
-                actions = {
-                    IconButton(onClick = {
-                        if (uiState.inSelectMode) {
-                            viewModel.onApplyBulkOperation()
-                        } else {
-                            viewModel.onToggleEntriesMenu(true)
-                        }
-                    }) {
-                        Icon(
-                            if (uiState.inSelectMode) Icons.Filled.Check else Icons.Filled.Menu,
-                            contentDescription = if (uiState.inSelectMode) "Apply" else "Menu"
-                        )
-                    }
-                    DropdownMenu(
-                        expanded = uiState.expandEntriesMenu,
-                        onDismissRequest = { viewModel.onToggleEntriesMenu(false) }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Delete") },
-                            onClick = { viewModel.onBulkOperation(BulkOperation.DELETE) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Hide") },
-                            onClick = { viewModel.onBulkOperation(BulkOperation.HIDE) }
-                        )
-                    }
-                }
+            EntriesTopBar(
+                title = getDayHeader(date),
+                inSelectMode = uiState.inSelectMode,
+                isMenuExpanded = uiState.expandEntriesMenu,
+                onBackClick = { navController.popBackStack() },
+                onMenuClick = { viewModel.onToggleEntriesMenu(true) },
+                onDismissMenu = { viewModel.onToggleEntriesMenu(false) },
+                onBulkOperation = { op -> viewModel.onBulkOperation(op) },
+                onApplySelection = { viewModel.onApplyBulkOperation() }
             )
         },
         floatingActionButton = {
@@ -103,7 +76,7 @@ fun EntriesScreen(
                 FloatingActionButton(
                     modifier = Modifier.padding(bottom = 4.dp),
                     shape = RoundedCornerShape(50),
-                    onClick = viewModel::onAddEntry
+                    onClick = { viewModel.onAddEntry(date) }
                 ) {
                     Icon(Icons.Filled.Add, "Add new journal entry")
                 }
@@ -111,12 +84,16 @@ fun EntriesScreen(
         }
     ) { paddingValues ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
+                .imePadding(),
+            contentPadding = PaddingValues(bottom = 88.dp)
         ) {
             items(uiState.entries, key = { it.id }) { entry ->
                 JournalEntryItem(
+                    navController = navController,
                     entry = entry,
                     onEntryTextChange = { newText -> viewModel.onEntryTextChange(entry, newText) },
                     onDeleteEntry = { viewModel.onDeleteEntry(entry) },

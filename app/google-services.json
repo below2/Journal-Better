@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "260167961904",
+    "project_id": "journal-better",
+    "storage_bucket": "journal-better.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:260167961904:android:8eac38d881194d7a670cf5",
+        "android_client_info": {
+          "package_name": "com.beelow.journalbetter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCDFNilukHrN15CtITHNA9WuSXCywt_rrY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

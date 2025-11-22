@@ -6,9 +6,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import com.beelow.journalbetter.data.BulkOperation
+import androidx.lifecycle.viewModelScope
 import com.beelow.journalbetter.data.JournalEntry
-import java.time.LocalDateTime
+import com.google.firebase.firestore.FieldValue
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import java.net.URLDecoder
+import java.nio.charset.StandardCharsets
+import java.time.LocalDate
+import java.util.Date
+import java.util.UUID
 
 data class EntriesUiState(
     val entries: List<JournalEntry> = emptyList(),
@@ -22,49 +29,95 @@ data class EntriesUiState(
 @RequiresApi(Build.VERSION_CODES.O)
 class EntriesViewModel : ViewModel() {
 
+    // Initialize variables
     var uiState by mutableStateOf(EntriesUiState())
         private set
+    private val repository = EntriesRepository()
+    private var entriesJob: Job? = null
+
+
+    fun observeEntriesForDate(date: String) {
+        // TODO: If we are already observing this date, do nothing
+        entriesJob?.cancel()
+
+        entriesJob = viewModelScope.launch {
+            uiState = uiState.copy(entries = emptyList()) // Optional: Clear list while loading
+            repository.getEntriesForDate(date).collect { firestoreList ->
+                uiState = uiState.copy(entries = firestoreList)
+            }
+        }
+    }
+
+    // Repository functions
+    fun onAddEntry(date: String) {
+        val newId = UUID.randomUUID().toString()
+        val newEntry = JournalEntry(
+            id = newId,
+            date = date,
+            createdTimestamp = Date(),
+            updatedTimestamp = Date()
+        )
+
+        uiState = uiState.copy(entryToFocusId = newId)
+
+        repository.addEntry(newEntry)
+    }
 
     fun onQuickNote(quickNote: String?) {
         if (quickNote != null) {
-            val quickNoteEntry = JournalEntry(timestamp = LocalDateTime.now(), text = quickNote)
-            uiState = uiState.copy(
-                entries = uiState.entries + quickNoteEntry,
-                entryToFocusId = quickNoteEntry.id
+            val newId = UUID.randomUUID().toString()
+            val quickNoteEntry = JournalEntry(
+                id = newId,
+                date = LocalDate.now().toString(),
+                createdTimestamp = Date(),
+                updatedTimestamp = Date(),
+                text = URLDecoder.decode(quickNote, StandardCharsets.UTF_8.toString())
             )
-        }
-    }
 
-    fun onAddEntry() {
-        val newEntry = JournalEntry(timestamp = LocalDateTime.now())
-        uiState = uiState.copy(
-            entries = uiState.entries + newEntry,
-            entryToFocusId = newEntry.id
-        )
+            uiState = uiState.copy(entryToFocusId = newId)
+
+            repository.addEntry(quickNoteEntry)
+        }
     }
 
     fun onEntryTextChange(entry: JournalEntry, newText: String) {
-        val index = uiState.entries.indexOf(entry)
-        if (index != -1) {
-            val updatedEntries = uiState.entries.toMutableList()
-            updatedEntries[index] = entry.copy(text = newText, timestamp = LocalDateTime.now())
-            uiState = uiState.copy(entries = updatedEntries)
-        }
+        // Only updating the text and updatedTimestamp of the entry
+        val updates = mapOf(
+            "text" to newText,
+            "updatedTimestamp" to FieldValue.serverTimestamp()
+        )
+        repository.updateEntry(entry.id, updates)
     }
 
     fun onDeleteEntry(entry: JournalEntry) {
-        uiState = uiState.copy(entries = uiState.entries - entry)
+        repository.deleteEntry(entry.id)
     }
 
     fun onToggleHideStatus(entry: JournalEntry) {
-        val index = uiState.entries.indexOf(entry)
-        if (index != -1) {
-            val updatedEntries = uiState.entries.toMutableList()
-            updatedEntries[index] = entry.copy(isHidden = !entry.isHidden)
-            uiState = uiState.copy(entries = updatedEntries)
-        }
+        repository.updateEntry(entry.id, mapOf("hidden" to !entry.hidden))
     }
 
+    fun onApplyBulkOperation() {
+        val selectedIds = uiState.selectedEntries
+
+        when (uiState.selectedMode) {
+            BulkOperation.DELETE -> {
+                repository.deleteEntries(selectedIds)
+            }
+            BulkOperation.HIDE -> {
+                repository.hideEntries(selectedIds, shouldHide = true)
+            }
+            BulkOperation.NOTHING -> { }
+        }
+
+        // Clear selection state
+        uiState = uiState.copy(
+            inSelectMode = false,
+            selectedEntries = emptySet()
+        )
+    }
+
+    // UI state functions
     fun onFocusRequestHandled() {
         uiState = uiState.copy(entryToFocusId = null)
     }
@@ -94,29 +147,5 @@ class EntriesViewModel : ViewModel() {
 
     fun onBackInSelectMode() {
         uiState = uiState.copy(inSelectMode = false)
-    }
-
-    fun onApplyBulkOperation() {
-        when (uiState.selectedMode) {
-            BulkOperation.DELETE -> {
-                val updatedEntries = uiState.entries.filterNot { uiState.selectedEntries.contains(it.id) }
-                uiState = uiState.copy(entries = updatedEntries)
-            }
-            BulkOperation.HIDE -> {
-                val updatedEntries = uiState.entries.map { entry ->
-                    if (uiState.selectedEntries.contains(entry.id)) {
-                        entry.copy(isHidden = !entry.isHidden)
-                    } else {
-                        entry
-                    }
-                }
-                uiState = uiState.copy(entries = updatedEntries)
-            }
-            BulkOperation.NOTHING -> {}
-        }
-        uiState = uiState.copy(
-            inSelectMode = false,
-            selectedEntries = emptySet()
-        )
     }
 }
