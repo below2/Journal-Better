@@ -1,4 +1,4 @@
-package com.beelow.journalbetter.ui.entries
+package com.beelow.journalbetter.ui.entryDetails
 
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -34,11 +34,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.beelow.journalbetter.util.getDayHeader // Assuming you have this from previous files
+import com.beelow.journalbetter.util.getDayHeader
 import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
 
 @RequiresApi(Build.VERSION_CODES.O)
@@ -102,14 +104,14 @@ fun EntryDetailsScreen(
                                 text = getDayHeader(entry.date ?: "Unknown"),
                                 style = MaterialTheme.typography.headlineMedium,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                textAlign = TextAlign.Center
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
 
-                    // 2. Body Text
+                    // Body Text
                     Text(
                         text = "Journal Entry",
                         style = MaterialTheme.typography.labelLarge,
@@ -156,7 +158,7 @@ fun EntryDetailsScreen(
 }
 
 @Composable
-fun MetadataRow(label: String, date: java.util.Date?) {
+fun MetadataRow(label: String, date: Date?) {
     val formatter = SimpleDateFormat("MMMM d, yyyy 'at' h:mm a", Locale.getDefault())
     Row(
         modifier = Modifier.fillMaxWidth(),

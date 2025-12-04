@@ -85,7 +85,7 @@ fun CalendarScreen(
                 onNextMonth = { viewModel.onSetNextMonth() },
                 onDayClick = { day ->
                     val date = String.format("%d-%02d-%02d", day.year, day.month + 1, day.day)
-                    navController.navigate("details/$date")
+                    navController.navigate("dayDetails/$date")
                 }
             )
 
@@ -95,7 +95,7 @@ fun CalendarScreen(
                     val now = LocalDateTime.now()
                     val date = String.format("%d-%02d-%02d", now.year, now.monthValue, now.dayOfMonth)
                     val encodedNote = URLEncoder.encode(note, StandardCharsets.UTF_8.toString())
-                    navController.navigate("details/$date?quickNote=$encodedNote")
+                    navController.navigate("entries/$date?quickNote=$encodedNote")
                 }
             )
         }

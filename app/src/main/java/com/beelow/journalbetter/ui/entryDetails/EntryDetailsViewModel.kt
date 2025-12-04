@@ -1,4 +1,4 @@
-package com.beelow.journalbetter.ui.entries
+package com.beelow.journalbetter.ui.entryDetails
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beelow.journalbetter.data.JournalEntry
+import com.beelow.journalbetter.ui.entries.EntriesRepository
 import kotlinx.coroutines.launch
 
 class EntryDetailsViewModel : ViewModel() {

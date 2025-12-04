@@ -9,8 +9,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.beelow.journalbetter.ui.calendar.CalendarScreen
+import com.beelow.journalbetter.ui.dayDetails.DayDetailsScreen
 import com.beelow.journalbetter.ui.entries.EntriesScreen
-import com.beelow.journalbetter.ui.entries.EntryDetailsScreen
+import com.beelow.journalbetter.ui.entryDetails.EntryDetailsScreen
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
@@ -26,9 +27,27 @@ fun JournalNavGraph(
                 onLogout = onLogout
             )
         }
+        // Day Details
+        composable(
+            "dayDetails/{date}",
+            arguments = listOf(navArgument("date") {
+                type = NavType.StringType
+                nullable = false
+            })
+        ) { backStackEntry ->
+            var date = backStackEntry.arguments?.getString("date")
+            if (date.isNullOrBlank()) {
+                date = "0000-01-01"
+            }
+
+            DayDetailsScreen(
+                navController = navController,
+                date = date
+            )
+        }
         // Entries
         composable(
-            "details/{date}?quickNote={quickNote}",
+            "entries/{date}?quickNote={quickNote}",
             arguments = listOf(
                 navArgument("date") {
                     type = NavType.StringType
@@ -46,7 +65,11 @@ fun JournalNavGraph(
                 date = "0000-01-01"
             }
 
-            EntriesScreen(date = date, quickNote = quickNote, navController = navController)
+            EntriesScreen(
+                date = date,
+                quickNote = quickNote,
+                navController = navController
+            )
         }
         // Entry Details
         composable(
