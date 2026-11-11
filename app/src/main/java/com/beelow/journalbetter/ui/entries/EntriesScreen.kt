@@ -25,6 +25,7 @@ import androidx.navigation.NavController
 import com.beelow.journalbetter.ui.entries.components.EntriesTopBar
 import com.beelow.journalbetter.ui.entries.components.JournalEntryItem
 import com.beelow.journalbetter.util.getDayHeader
+import com.beelow.journalbetter.ui.AppViewModelProvider
 
 // TODO: add more bulk operations like highlight, probably refactor to separate file
 enum class BulkOperation {
@@ -37,7 +38,7 @@ fun EntriesScreen(
     date: String,
     quickNote: String?,
     navController: NavController,
-    viewModel: EntriesViewModel = viewModel()
+    viewModel: EntriesViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     val uiState = viewModel.uiState
     val listState = rememberLazyListState()

@@ -6,11 +6,12 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beelow.journalbetter.data.JournalEntry
-import com.beelow.journalbetter.ui.entries.EntriesRepository
+import com.beelow.journalbetter.data.JournalRepository
 import kotlinx.coroutines.launch
 
-class EntryDetailsViewModel : ViewModel() {
-    private val repository = EntriesRepository()
+class EntryDetailsViewModel(
+    private val repository: JournalRepository
+) : ViewModel() {
 
     var entry by mutableStateOf<JournalEntry?>(null)
         private set

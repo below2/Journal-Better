@@ -65,11 +65,9 @@ fun JournalEntryItem(
         }
     }
 
-    // Sync timestamp from server
+    // Keep the displayed timestamp in step with the persisted value
     LaunchedEffect(entry.updatedTimestamp) {
-        if (entry.updatedTimestamp != null) {
-            localUpdatedTimestamp = entry.updatedTimestamp
-        }
+        localUpdatedTimestamp = entry.updatedTimestamp
     }
 
     // Save on dispose

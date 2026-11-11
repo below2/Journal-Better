@@ -4,11 +4,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -34,12 +30,10 @@ import java.util.Locale
 @Composable
 fun CalendarScreen(
     navController: NavController,
-    onLogout: () -> Unit,
     viewModel: CalendarViewModel = viewModel()
 ) {
     val uiState = viewModel.uiState
 
-    // Helper to calculate header data for the current view
     val (_, headerCalendar, _) = getCalendarData(uiState.calendarMonthOffset)
 
     Scaffold(
@@ -47,11 +41,6 @@ fun CalendarScreen(
             TopAppBar(
                 title = {
                     Text("Journal Better", style = MaterialTheme.typography.headlineMedium)
-                },
-                actions = {
-                    IconButton(onClick = { onLogout() }) {
-                        Icon(Icons.Default.Search, contentDescription = "Search")
-                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -68,14 +57,12 @@ fun CalendarScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // Header
             CalendarHeader(
                 currentMonthYearText = "${headerCalendar.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.getDefault())?.uppercase()} ${headerCalendar.get(Calendar.YEAR)}",
                 onPreviousMonthClick = { viewModel.onSetPreviousMonth() },
                 onNextMonthClick = { viewModel.onSetNextMonth() }
             )
 
-            // Calendar
             AnimatedCalendarView(
                 monthOffset = uiState.calendarMonthOffset,
                 modifier = Modifier
@@ -89,7 +76,6 @@ fun CalendarScreen(
                 }
             )
 
-            // Quick Note
             QuickNoteInput(
                 onQuickNoteEntered = { note ->
                     val now = LocalDateTime.now()

@@ -1,14 +1,12 @@
 package com.beelow.journalbetter.ui.entries
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.beelow.journalbetter.data.JournalEntry
-import com.google.firebase.firestore.FieldValue
+import com.beelow.journalbetter.data.JournalRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.net.URLDecoder
@@ -26,113 +24,103 @@ data class EntriesUiState(
     val expandEntriesMenu: Boolean = false
 )
 
-@RequiresApi(Build.VERSION_CODES.O)
-class EntriesViewModel : ViewModel() {
+class EntriesViewModel(
+    private val repository: JournalRepository
+) : ViewModel() {
 
-    // Initialize variables
     var uiState by mutableStateOf(EntriesUiState())
         private set
-    private val repository = EntriesRepository()
-    private var entriesJob: Job? = null
 
+    private var entriesJob: Job? = null
+    private var observedDate: String? = null
+
+    // The screen's LaunchedEffect re-runs after rotation while this ViewModel survives,
+    // so without this flag a quick note would be inserted again on every recreation.
+    private var quickNoteHandled = false
 
     fun observeEntriesForDate(date: String) {
-        // TODO: If we are already observing this date, do nothing
-        entriesJob?.cancel()
+        if (date == observedDate) return
+        observedDate = date
 
+        entriesJob?.cancel()
         entriesJob = viewModelScope.launch {
-            uiState = uiState.copy(entries = emptyList()) // Optional: Clear list while loading
-            repository.getEntriesForDate(date).collect { firestoreList ->
-                uiState = uiState.copy(entries = firestoreList)
+            repository.observeEntriesForDate(date).collect { entries ->
+                uiState = uiState.copy(entries = entries)
             }
         }
     }
 
-    // Repository functions
+    // Repository operations
     fun onAddEntry(date: String) {
-        val newId = UUID.randomUUID().toString()
+        val now = Date()
         val newEntry = JournalEntry(
-            id = newId,
+            id = UUID.randomUUID().toString(),
             date = date,
-            createdTimestamp = Date(),
-            updatedTimestamp = Date()
+            createdTimestamp = now,
+            updatedTimestamp = now
         )
 
-        uiState = uiState.copy(entryToFocusId = newId)
-
-        repository.addEntry(newEntry)
+        uiState = uiState.copy(entryToFocusId = newEntry.id)
+        viewModelScope.launch { repository.saveEntry(newEntry) }
     }
 
     fun onQuickNote(quickNote: String?) {
-        if (quickNote != null) {
-            val newId = UUID.randomUUID().toString()
-            val quickNoteEntry = JournalEntry(
-                id = newId,
-                date = LocalDate.now().toString(),
-                createdTimestamp = Date(),
-                updatedTimestamp = Date(),
-                text = URLDecoder.decode(quickNote, StandardCharsets.UTF_8.toString())
-            )
+        if (quickNote == null || quickNoteHandled) return
+        quickNoteHandled = true
 
-            uiState = uiState.copy(entryToFocusId = newId)
+        val now = Date()
+        val entry = JournalEntry(
+            id = UUID.randomUUID().toString(),
+            date = LocalDate.now().toString(),
+            createdTimestamp = now,
+            updatedTimestamp = now,
+            text = URLDecoder.decode(quickNote, StandardCharsets.UTF_8.toString())
+        )
 
-            repository.addEntry(quickNoteEntry)
-        }
+        uiState = uiState.copy(entryToFocusId = entry.id)
+        viewModelScope.launch { repository.saveEntry(entry) }
     }
 
     fun onEntryTextChange(entry: JournalEntry, newText: String) {
-        // Only updating the text and updatedTimestamp of the entry
-        val updates = mapOf(
-            "text" to newText,
-            "updatedTimestamp" to FieldValue.serverTimestamp()
-        )
-        repository.updateEntry(entry.id, updates)
+        viewModelScope.launch { repository.updateEntryText(entry.id, newText) }
     }
 
     fun onDeleteEntry(entry: JournalEntry) {
-        repository.deleteEntry(entry.id)
+        viewModelScope.launch { repository.deleteEntry(entry.id) }
     }
 
     fun onToggleHideStatus(entry: JournalEntry) {
-        repository.updateEntry(entry.id, mapOf("hidden" to !entry.hidden))
+        viewModelScope.launch { repository.setEntryHidden(entry.id, !entry.hidden) }
     }
 
     fun onApplyBulkOperation() {
         val selectedIds = uiState.selectedEntries
 
-        when (uiState.selectedMode) {
-            BulkOperation.DELETE -> {
-                repository.deleteEntries(selectedIds)
+        viewModelScope.launch {
+            when (uiState.selectedMode) {
+                BulkOperation.DELETE -> repository.deleteEntries(selectedIds)
+                BulkOperation.HIDE -> repository.hideEntries(selectedIds, hidden = true)
+                BulkOperation.NOTHING -> Unit
             }
-            BulkOperation.HIDE -> {
-                repository.hideEntries(selectedIds, shouldHide = true)
-            }
-            BulkOperation.NOTHING -> { }
         }
 
-        // Clear selection state
         uiState = uiState.copy(
             inSelectMode = false,
             selectedEntries = emptySet()
         )
     }
 
-    // UI state functions
+    // UI state
     fun onFocusRequestHandled() {
         uiState = uiState.copy(entryToFocusId = null)
     }
 
     fun onSelectEntry(entry: JournalEntry) {
-        val selectedEntries = uiState.selectedEntries.toMutableSet()
-        if (selectedEntries.contains(entry.id)) {
-            selectedEntries.remove(entry.id)
-
-        } else {
-            selectedEntries.add(entry.id)
-        }
-        uiState = uiState.copy(selectedEntries = selectedEntries)
+        val selected = uiState.selectedEntries.toMutableSet()
+        if (!selected.add(entry.id)) selected.remove(entry.id)
+        uiState = uiState.copy(selectedEntries = selected)
     }
-    
+
     fun onBulkOperation(operation: BulkOperation) {
         uiState = uiState.copy(
             selectedMode = operation,

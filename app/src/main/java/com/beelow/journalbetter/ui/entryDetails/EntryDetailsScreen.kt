@@ -42,6 +42,7 @@ import com.beelow.journalbetter.util.getDayHeader
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import com.beelow.journalbetter.ui.AppViewModelProvider
 
 @RequiresApi(Build.VERSION_CODES.O)
 @OptIn(ExperimentalMaterial3Api::class)
@@ -49,7 +50,7 @@ import java.util.Locale
 fun EntryDetailsScreen(
     navController: NavController,
     entryId: String,
-    viewModel: EntryDetailsViewModel = viewModel()
+    viewModel: EntryDetailsViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     // Fetch singular entry when screen opens
     LaunchedEffect(entryId) {
@@ -101,7 +102,7 @@ fun EntryDetailsScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = getDayHeader(entry.date ?: "Unknown"),
+                                text = getDayHeader(entry.date),
                                 style = MaterialTheme.typography.headlineMedium,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 textAlign = TextAlign.Center

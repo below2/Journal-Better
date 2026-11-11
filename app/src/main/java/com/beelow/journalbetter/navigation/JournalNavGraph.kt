@@ -1,7 +1,5 @@
 package com.beelow.journalbetter.navigation
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
@@ -13,21 +11,13 @@ import com.beelow.journalbetter.ui.dayDetails.DayDetailsScreen
 import com.beelow.journalbetter.ui.entries.EntriesScreen
 import com.beelow.journalbetter.ui.entryDetails.EntryDetailsScreen
 
-@RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun JournalNavGraph(
-    navController: NavHostController,
-    onLogout: () -> Unit
-) {
+fun JournalNavGraph(navController: NavHostController) {
     NavHost(navController = navController, startDestination = "calendar") {
-        // Calendar
         composable("calendar") {
-            CalendarScreen(
-                navController = navController,
-                onLogout = onLogout
-            )
+            CalendarScreen(navController = navController)
         }
-        // Day Details
+
         composable(
             "dayDetails/{date}",
             arguments = listOf(navArgument("date") {
@@ -35,17 +25,15 @@ fun JournalNavGraph(
                 nullable = false
             })
         ) { backStackEntry ->
-            var date = backStackEntry.arguments?.getString("date")
-            if (date.isNullOrBlank()) {
-                date = "0000-01-01"
-            }
+            val date = backStackEntry.arguments?.getString("date")
+                ?.takeIf { it.isNotBlank() } ?: "0000-01-01"
 
             DayDetailsScreen(
                 navController = navController,
                 date = date
             )
         }
-        // Entries
+
         composable(
             "entries/{date}?quickNote={quickNote}",
             arguments = listOf(
@@ -59,11 +47,9 @@ fun JournalNavGraph(
                 }
             )
         ) { backStackEntry ->
-            var date = backStackEntry.arguments?.getString("date")
+            val date = backStackEntry.arguments?.getString("date")
+                ?.takeIf { it.isNotBlank() } ?: "0000-01-01"
             val quickNote = backStackEntry.arguments?.getString("quickNote")
-            if (date.isNullOrBlank()) {
-                date = "0000-01-01"
-            }
 
             EntriesScreen(
                 date = date,
@@ -71,7 +57,7 @@ fun JournalNavGraph(
                 navController = navController
             )
         }
-        // Entry Details
+
         composable(
             "entryDetails/{entryId}",
             arguments = listOf(navArgument("entryId") { type = NavType.StringType })
